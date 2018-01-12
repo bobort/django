@@ -1,4 +1,4 @@
-from django.db.models import Func, Transform, Value, fields
+from django.db.models import Func, Transform, Value, fields, IntegerField
 from django.db.models.functions import Coalesce
 
 
@@ -9,10 +9,10 @@ class ConcatPair(Func):
     """
     function = 'CONCAT'
 
-    def as_sqlite(self, compiler, connection):
+    def as_sqlite(self, compiler, connection, **extra_context):
         coalesced = self.coalesce()
         return super(ConcatPair, coalesced).as_sql(
-            compiler, connection, template='%(expressions)s', arg_joiner=' || '
+            compiler, connection, template='%(expressions)s', arg_joiner=' || ', **extra_context
         )
 
     def as_mysql(self, compiler, connection):
@@ -101,13 +101,78 @@ class Substr(Func):
             expressions.append(length)
         super().__init__(*expressions, **extra)
 
-    def as_sqlite(self, compiler, connection):
-        return super().as_sql(compiler, connection, function='SUBSTR')
+    def as_sqlite(self, compiler, connection, **extra_context):
+        return super().as_sql(compiler, connection, function='SUBSTR', **extra_context)
 
-    def as_oracle(self, compiler, connection):
-        return super().as_sql(compiler, connection, function='SUBSTR')
+    def as_oracle(self, compiler, connection, **extra_context):
+        return super().as_sql(compiler, connection, function='SUBSTR', **extra_context)
 
 
 class Upper(Transform):
     function = 'UPPER'
     lookup_name = 'upper'
+
+
+class Ord(Transform):
+    function = 'ASCII'
+    lookup_name = 'ord'
+    output_field = IntegerField()
+
+    def as_sqlite(self, compiler, connection, **extra_context):
+        return self.as_sql(compiler, connection, function='UNICODE', **extra_context)
+
+
+class Chr(Transform):
+    function = 'CHR'
+    lookup_name = 'chr'
+
+    def as_sqlite(self, compiler, connection, **extra_context):
+        return self.as_sql(compiler, connection, function='CHAR', **extra_context)
+
+    def as_mysql(self, compiler, connection, **extra_context):
+        return self.as_sql(compiler, connection, function='CHAR', **extra_context)
+
+
+class Left(Func):
+    function = 'LEFT'
+    arity = 2
+
+    def __init__(self, expression, length, **extra):
+        """
+        expression: the name of a field, or an expression returning a string
+        length: an optional number of characters to return
+        """
+        expressions = [expression, length]
+        super().__init__(*expressions, **extra)
+
+    def as_oracle(self, compiler, connection, **extra_context):
+        if len(self.source_expressions) == self.arity:
+            self.source_expressions.insert(1, Value(1))
+        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+
+    def as_sqlite(self, compiler, connection, **extra_context):
+        if len(self.source_expressions) == self.arity:
+            self.source_expressions.insert(1, Value(1))
+        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+
+
+class Right(Func):
+    function = 'RIGHT'
+    arity = 2
+
+    def __init__(self, expression, length, **extra):
+        """
+        expression: the name of a field, or an expression returning a string
+        length: an optional number of characters to return
+        """
+        expressions = [expression, length]
+        super().__init__(*expressions, **extra)
+
+    def as_oracle(self, compiler, connection, **extra_context):
+        self.source_expressions[-1] = self.source_expressions[-1] * Value(-1)
+        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+
+    def as_sqlite(self, compiler, connection, **extra_context):
+        self.source_expressions[-1] = self.source_expressions[-1] * Value(-1)
+        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+

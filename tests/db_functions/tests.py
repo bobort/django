@@ -3,11 +3,11 @@ from decimal import Decimal
 from unittest import skipIf, skipUnless
 
 from django.db import connection
-from django.db.models import CharField, TextField, Value as V
+from django.db.models import CharField, TextField, Value as V, IntegerField
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import (
     Coalesce, Concat, ConcatPair, Greatest, Least, Length, Lower, Now, Substr,
-    Upper,
+    Upper, Ord, Chr, Left, Right
 )
 from django.test import TestCase, skipIfDBFeature, skipUnlessDBFeature
 from django.utils import timezone
@@ -670,4 +670,140 @@ class FunctionTests(TestCase):
         self.assertQuerysetEqual(
             Author.objects.exclude(alias=Upper(V('smithj'))),
             ['Rhonda'], lambda x: x.name
+        )
+
+    def test_ord(self):
+        Author.objects.create(name='John Smith', alias='smithj')
+        Author.objects.create(name='Élena Jordan', alias='élena')
+        Author.objects.create(name='Rhonda')
+        authors = Author.objects.annotate(name_part=Ord('name'))
+
+        self.assertQuerysetEqual(
+            authors.filter(name_part__gt=Ord(V('John'))).order_by('name'),
+            ['Rhonda', 'Élena Jordan'], lambda x: x.name
+        )
+        self.assertQuerysetEqual(
+            authors.exclude(name_part__gt=Ord(V('John'))),
+            ['John Smith'], lambda x: x.name
+        )
+
+    def test_ord_transform(self):
+        try:
+            CharField.register_lookup(Ord, 'ord')
+            Author.objects.create(name='John Smith', alias='smithj')
+            Author.objects.create(name='Élena Jordan', alias='élena')
+            Author.objects.create(name='Rhonda')
+            authors = Author.objects.annotate(first_initial=Left('name', 1))
+            self.assertQuerysetEqual(
+                authors.filter(first_initial__ord=ord('J')),
+                ['John Smith'], lambda x: x.name
+            )
+            self.assertQuerysetEqual(
+                authors.exclude(first_initial__ord=ord('J')).order_by('name'),
+                ['Rhonda', 'Élena Jordan'], lambda x: x.name
+            )
+        finally:
+            CharField._unregister_lookup(Ord, 'ord')
+
+    def test_chr(self):
+        Author.objects.create(name='John Smith', alias='smithj')
+        Author.objects.create(name='Élena Jordan', alias='élena')
+        Author.objects.create(name='Rhonda')
+        authors = Author.objects.annotate(first_initial=Left('name', 1))
+
+        self.assertQuerysetEqual(
+            authors.filter(first_initial=Chr(ord('J'))),
+            ['John Smith'], lambda x: x.name
+        )
+        self.assertQuerysetEqual(
+            authors.exclude(first_initial=Chr(ord('J'))).order_by('name'),
+            ['Rhonda', 'Élena Jordan'], lambda x: x.name
+        )
+
+    def test_chr_transform(self):
+        try:
+            IntegerField.register_lookup(Chr, 'chr')
+            Author.objects.create(name='John Smith', alias='smithj')
+            Author.objects.create(name='Élena Jordan', alias='élena')
+            Author.objects.create(name='Rhonda')
+            authors = Author.objects.annotate(name_code_point=Ord('name'))
+            self.assertQuerysetEqual(
+                authors.filter(name_code_point__chr=Chr(ord('J'))),
+                ['John Smith'], lambda x: x.name
+            )
+            self.assertQuerysetEqual(
+                authors.exclude(name_code_point__chr=Chr(ord('J'))).order_by('name'),
+                ['Rhonda', 'Élena Jordan'], lambda x: x.name
+            )
+        finally:
+            IntegerField._unregister_lookup(Chr, 'chr')
+
+    def test_left(self):
+        Author.objects.create(name='John Smith', alias='smithj')
+        Author.objects.create(name='Rhonda')
+        authors = Author.objects.annotate(name_part=Left('name', 5))
+
+        self.assertQuerysetEqual(
+            authors.order_by('name'), [
+                'John ',
+                'Rhond',
+            ],
+            lambda a: a.name_part
+        )
+
+        authors = Author.objects.annotate(name_part=Left('name', -2))
+        self.assertQuerysetEqual(
+            authors.order_by('name'), [
+                '',
+                '',
+            ],
+            lambda a: a.name_part
+        )
+
+        # if alias is null, set to first 5 lower characters of the name
+        Author.objects.filter(alias__isnull=True).update(
+            alias=Lower(Left('name', 5)),
+        )
+
+        self.assertQuerysetEqual(
+            authors.order_by('name'), [
+                'smithj',
+                'rhond',
+            ],
+            lambda a: a.alias
+        )
+
+    def test_right(self):
+        Author.objects.create(name='John Smith', alias='smithj')
+        Author.objects.create(name='Rhonda')
+        authors = Author.objects.annotate(name_part=Right('name', 5))
+
+        self.assertQuerysetEqual(
+            authors.order_by('name'), [
+                'Smith',
+                'honda',
+            ],
+            lambda a: a.name_part
+        )
+
+        authors = Author.objects.annotate(name_part=Right('name', -2))
+        self.assertQuerysetEqual(
+            authors.order_by('name'), [
+                'ohn Smith',
+                'honda',
+            ],
+            lambda a: a.name_part
+        )
+
+        # if alias is null, set to last 5 lower characters of the name
+        Author.objects.filter(alias__isnull=True).update(
+            alias=Lower(Right('name', 5)),
+        )
+
+        self.assertQuerysetEqual(
+            authors.order_by('name'), [
+                'smithj',
+                'honda',
+            ],
+            lambda a: a.alias
         )

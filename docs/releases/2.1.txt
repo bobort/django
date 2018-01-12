@@ -168,6 +168,14 @@ Models
 
 * A ``BinaryField`` may now be set to ``editable=True`` if you wish to include
   it in model forms.
+* Added the :class:~django.db.models.functions.Ord database function.
+
+* Added the :class:~django.db.models.functions.Chr database function.
+
+* Added the :class:~django.db.models.functions.Left database function.
+
+* Added the :class:~django.db.models.functions.Right database function.
+
 
 Requests and Responses
 ~~~~~~~~~~~~~~~~~~~~~~
