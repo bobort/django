@@ -169,12 +169,21 @@ Models
 * A ``BinaryField`` may now be set to ``editable=True`` if you wish to include
   it in model forms.
 * Added the :class:~django.db.models.functions.Ord database function.
+* Added the :class:``~django.db.models.functions.Ord`` database function.  It
+returns the unicode code point of the first character of a string expression.
 
-* Added the :class:~django.db.models.functions.Chr database function.
+* Added the :class:``~django.db.models.functions.Chr`` database function.  It
+returns the unicode character of an integer value.
 
-* Added the :class:~django.db.models.functions.Left database function.
+* Added the :class:``~django.db.models.functions.Left`` database function.  By
+passing an extra parameter, `length`, it returns the leftmost ``length``
+characters of the string expression.  Oracle and SQLite do not have a Left
+function.  Django will use their Substr function in its place.
 
-* Added the :class:~django.db.models.functions.Right database function.
+* Added the :class:~django.db.models.functions.Right database function.  By
+passing an extra parameter, `length`, it returns the rightmost ``length``
+characters of the string expression.  Oracle and SQLite do not have a Right
+function.  Django will use their Substr function in its place.
 
 
 Requests and Responses

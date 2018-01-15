@@ -677,21 +677,24 @@ Text functions
 
 
 ``Chr``
----------
+-------
 
 .. class:: Chr(expression, **extra)
+
+.. versionadded:: 2.1
 
 Accepts a single numeric field or expression and returns the text representation
 of the expression as a single character.  It acts equivalently to Python's `chr`
 function.
 
-It can also be registered as a transform on IntegerFields as described in :class:`Length`.
+It can also be registered as a transform on IntegerFields as described in
+:class:`Length`.
 
 Usage example::
 
     >>> from django.db.models.functions import Chr
     >>> Author.objects.create(name='Margaret Smith')
-    >>> author = Author.objects.filter(name__startswith=Chr('M')).get()
+    >>> author = Author.objects.filter(name__startswith=Chr(ord('M'))).get()
     >>> print(author.name)
     Margaret Smith
 
@@ -726,6 +729,24 @@ Usage example::
     >>> print(author.screen_name)
     Margaret Smith (Maggie)
 
+``Left``
+--------
+
+.. class:: Left(expression, length, **extra)
+
+.. versionadded:: 2.1
+
+Accepts a single text field or expression and the 1-indexed length of the
+substring to return.  The first ``length`` characters are returned.
+
+Usage example::
+
+    >>> from django.db.models.functions import Left
+    >>> Author.objects.create(name='Margaret Smith')
+    >>> author = Author.objects.annotate(first_initial=Left('name', 1)).get()
+    >>> print(author.first_initial)
+    M
+
 ``Length``
 ----------
 
@@ -754,23 +775,7 @@ It can also be registered as a transform. For example::
     >>> authors = Author.objects.filter(name__length__gt=7)
 
 
-``Left``
----------
-
-.. class:: Left(expression, length, **extra)
-
-Accepts a single text field or expression and the 1-indexed length of the substring to return.
-The first ``length`` characters are returned.
-
-Usage example::
-
-    >>> from django.db.models.functions import Left
-    >>> Author.objects.create(name='Margaret Smith')
-    >>> author = Author.objects.annotate(first_initial=Left('name', 1)).get()
-    >>> print(author.first_initial)
-    M
-
- ``Lower``
+``Lower``
 ---------
 
 .. class:: Lower(expression, **extra)
@@ -789,14 +794,16 @@ Usage example::
     margaret smith
 
 ``Ord``
----------
+-------
 
 .. class:: Ord(expression, **extra)
 
+.. versionadded:: 2.1
+
 Accepts a single text field or expression and returns the Unicode code point value
 for the first character of that expression.  It acts similar to Python's `ord`
-function, but the database backend will not raise an exception if the expression is more
-than one character long.
+function, but the database backend will not raise an exception if the expression
+is more than one character long.
 
 It can also be registered as a transform as described in :class:`Length`.
 
@@ -807,6 +814,25 @@ Usage example::
     >>> author = Author.objects.annotate(name_code_point=Ord('name')).get()
     >>> print(author.name_code_point)
     77
+
+``Right``
+---------
+
+.. class:: Right(expression, length, **extra)
+
+.. versionadded:: 2.1
+
+Accepts a single text field or expression and the 1-indexed length of the
+substring to return.  The first ``length`` characters are returned starting
+from the end of the string.
+
+Usage example::
+
+    >>> from django.db.models.functions import Right
+    >>> Author.objects.create(name='Margaret Smith')
+    >>> author = Author.objects.annotate(last_letter=Right('name', 1)).get()
+    >>> print(author.last_letter)
+    h
 
 ``StrIndex``
 ------------
@@ -841,22 +867,6 @@ Usage example::
     whether string comparisons (such as the ``expression`` and ``substring`` of
     this function) are case-sensitive. Comparisons are case-insensitive by
     default.
-
-``Right``
----------
-
-.. class:: Right(expression, length, **extra)
-
-Accepts a single text field or expression and the 1-indexed length of the substring to return.
-The first ``length`` characters are returned starting from the end of the string.
-
-Usage example::
-
-    >>> from django.db.models.functions import Right
-    >>> Author.objects.create(name='Margaret Smith')
-    >>> author = Author.objects.annotate(last_letter=Right('name', 1)).get()
-    >>> print(author.last_letter)
-    h
 
 ``Substr``
 ----------
