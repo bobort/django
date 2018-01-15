@@ -1,4 +1,4 @@
-from django.db.models import Func, Transform, Value, fields, IntegerField
+from django.db.models import Func, IntegerField, Transform, Value, fields
 from django.db.models.functions import Coalesce
 
 
@@ -6,11 +6,14 @@ class Chr(Transform):
     function = 'CHR'
     lookup_name = 'chr'
 
+    def as_mysql_and_sqlite(self, compiler, connection, **extra_context):
+        return super().as_sql(compiler, connection, function='CHAR', **extra_context)
+
     def as_sqlite(self, compiler, connection, **extra_context):
-        return self.as_sql(compiler, connection, function='CHAR', **extra_context)
+        return self.as_mysql_and_sqlite(compiler, connection, **extra_context)
 
     def as_mysql(self, compiler, connection, **extra_context):
-        return self.as_sql(compiler, connection, function='CHAR', **extra_context)
+        return self.as_mysql_and_sqlite(compiler, connection, **extra_context)
 
 
 class ConcatPair(Func):
@@ -73,20 +76,21 @@ class Left(Func):
     def __init__(self, expression, length, **extra):
         """
         expression: the name of a field, or an expression returning a string
-        length: an optional number of characters to return
+        length: the number of characters to return from the leftmost character
         """
-        expressions = [expression, length]
-        super().__init__(*expressions, **extra)
+        if not hasattr(length, 'resolve_expression'):
+            if length < 1:
+                raise ValueError("'length' must be greater than 0")
+        super().__init__(*[expression, length], **extra)
 
-    def as_oracle(self, compiler, connection, **extra_context):
-        if len(self.source_expressions) == self.arity:
-            self.source_expressions.insert(1, Value(1))
-        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+    def get_substr(self):
+        return Substr(self.source_expressions[0], Value(1), self.source_expressions[1])
+
+    def as_oracle(self, compiler, connection):
+        return self.get_substr().as_oracle(compiler, connection)
 
     def as_sqlite(self, compiler, connection, **extra_context):
-        if len(self.source_expressions) == self.arity:
-            self.source_expressions.insert(1, Value(1))
-        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+        return self.get_substr().as_sqlite(compiler, connection, **extra_context)
 
 
 class Length(Transform):
@@ -110,7 +114,14 @@ class Ord(Transform):
     output_field = IntegerField()
 
     def as_sqlite(self, compiler, connection, **extra_context):
-        return self.as_sql(compiler, connection, function='UNICODE', **extra_context)
+        return super().as_sql(compiler, connection, function='UNICODE', **extra_context)
+
+
+class Replace(Func):
+    function = 'REPLACE'
+
+    def __init__(self, expression, text, replacement=Value(''), **extra):
+        super().__init__(expression, text, replacement, **extra)
 
 
 class Right(Func):
@@ -120,18 +131,21 @@ class Right(Func):
     def __init__(self, expression, length, **extra):
         """
         expression: the name of a field, or an expression returning a string
-        length: an optional number of characters to return
+        length: the number of characters to return from the rightmost character
         """
-        expressions = [expression, length]
-        super().__init__(*expressions, **extra)
+        if not hasattr(length, 'resolve_expression'):
+            if length < 1:
+                raise ValueError("'length' must be greater than 0")
+        super().__init__(*[expression, length], **extra)
 
-    def as_oracle(self, compiler, connection, **extra_context):
-        self.source_expressions[-1] = self.source_expressions[-1] * Value(-1)
-        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+    def get_substr(self):
+        return Substr(self.source_expressions[0], self.source_expressions[1] * Value(-1))
+
+    def as_oracle(self, compiler, connection):
+        return self.get_substr().as_oracle(compiler, connection)
 
     def as_sqlite(self, compiler, connection, **extra_context):
-        self.source_expressions[-1] = self.source_expressions[-1] * Value(-1)
-        return self.as_sql(compiler, connection, function='SUBSTR', **extra_context)
+        return self.get_substr().as_sqlite(compiler, connection, **extra_context)
 
 
 class StrIndex(Func):

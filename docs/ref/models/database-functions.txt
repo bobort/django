@@ -684,8 +684,8 @@ Text functions
 .. versionadded:: 2.1
 
 Accepts a single numeric field or expression and returns the text representation
-of the expression as a single character.  It acts equivalently to Python's `chr`
-function.
+of the expression as a single character.  It acts equivalently to Python's
+```chr`` function.
 
 It can also be registered as a transform on IntegerFields as described in
 :class:`Length`.
@@ -737,7 +737,8 @@ Usage example::
 .. versionadded:: 2.1
 
 Accepts a single text field or expression and the 1-indexed length of the
-substring to return.  The first ``length`` characters are returned.
+substring to return.  The first ``length`` characters are returned.  If length
+is negative, ``None`` is returned.
 
 Usage example::
 
@@ -746,6 +747,11 @@ Usage example::
     >>> author = Author.objects.annotate(first_initial=Left('name', 1)).get()
     >>> print(author.first_initial)
     M
+
+..
+    Oracle and SQLite do not have a Left builtin function.  Django will
+    substitute Left with the corresponding Substr function to get the
+    same result.
 
 ``Length``
 ----------
@@ -774,6 +780,21 @@ It can also be registered as a transform. For example::
     >>> # Get authors whose name is longer than 7 characters
     >>> authors = Author.objects.filter(name__length__gt=7)
 
+``Left``
+---------
+
+.. class:: Left(expression, length, **extra)
+
+Accepts a single text field or expression and the 1-indexed length of the substring to return.
+The first ``length`` characters are returned.
+
+Usage example::
+
+    >>> from django.db.models.functions import Left
+    >>> Author.objects.create(name='Margaret Smith')
+    >>> author = Author.objects.annotate(first_initial=Left('name', 1)).get()
+    >>> print(author.first_initial)
+    M
 
 ``Lower``
 ---------
@@ -824,7 +845,7 @@ Usage example::
 
 Accepts a single text field or expression and the 1-indexed length of the
 substring to return.  The first ``length`` characters are returned starting
-from the end of the string.
+from the end of the string.  If ``length`` is negative, None is returned.
 
 Usage example::
 
@@ -833,6 +854,33 @@ Usage example::
     >>> author = Author.objects.annotate(last_letter=Right('name', 1)).get()
     >>> print(author.last_letter)
     h
+
+..
+    Oracle and SQLite do not have a Right builtin function.  Django will
+    substitute Right with the corresponding Substr function to get the
+    same result.
+
+``Replace``
+-----------
+
+.. class:: Replace(expression, text, replacement=Value(''), **extra)
+
+.. versionadded:: 2.1
+
+Replaces all occurrences of ``text`` with ``replacement`` in ``expression``.
+The default replacement text is the empty string. The arguments to the function
+are case-sensitive.
+
+Usage example::
+
+    >>> from django.db.models import Value
+    >>> from django.db.models.functions import Replace
+    >>> Author.objects.create(name='Margaret Johnson')
+    >>> Author.objects.create(name='Margaret Smith')
+    >>> Author.objects.update(name=Replace('name', Value('Margaret'), Value('Margareth')))
+    2
+    >>> Author.objects.values('name')
+    <QuerySet [{'name': 'Margareth Johnson'}, {'name': 'Margareth Smith'}]>
 
 ``StrIndex``
 ------------
